@@ -1,0 +1,112 @@
+# Magnetfeldlinien – interaktive Simulation
+
+Eine kleine HTML/CSS/JavaScript-Simulation für den Physikunterricht.
+
+## Enthaltene Funktionen
+
+- Stabmagnet
+- U-/Rechteckmagnet mit Öffnung nach oben
+- Nordpol rot, Südpol grün
+- optional zweiter Magnet
+- einstellbare Magnetstärke
+- bewegliche Kompassnadel
+- automatische Ausrichtung der Kompassnadel
+- einzelne Feldlinie durch die Kompassposition
+- Anzeige des gesamten Magnetfelds
+- Vorhersagemodus:
+  - magnetische Wirkung aus
+  - Kompass manuell drehen
+  - anschließend Lösung prüfen
+- näherungsweise homogenes Feld im Luftspalt des Rechteckmagneten
+
+## Projektstruktur
+
+```text
+magnetfeld-simulation/
+├── index.html
+├── style.css
+├── app.js
+└── README.md
+```
+
+## In VS Code starten
+
+### Variante 1: Live Server
+
+1. Den Projektordner in VS Code öffnen.
+2. Die Erweiterung **Live Server** installieren.
+3. `index.html` öffnen.
+4. Rechts unten auf **Go Live** klicken.
+
+Die Simulation öffnet sich im Browser und aktualisiert sich bei Änderungen automatisch.
+
+### Variante 2: Ohne Erweiterung
+
+Im VS-Code-Terminal im Projektordner ausführen:
+
+```bash
+python -m http.server 8000
+```
+
+Danach im Browser öffnen:
+
+```text
+http://localhost:8000
+```
+
+## Wo ändere ich was?
+
+### `index.html`
+
+Benutzeroberfläche:
+- Buttons
+- Auswahlfelder
+- Beschriftungen
+- Regler
+
+### `style.css`
+
+Darstellung:
+- Farben
+- Größen
+- Abstände
+- responsive Ansicht
+
+Wichtige Farbvariablen:
+
+```css
+--north: #f04444;
+--south: #218c4b;
+--field: #3f759d;
+```
+
+### `app.js`
+
+Simulation und Physikmodell:
+- Magnetpositionen
+- Feldberechnung
+- Feldlinien
+- Kompassausrichtung
+- Vorhersagemodus
+- Feldliniendichte
+
+Wichtige Funktionen:
+
+- `magnets()` – erzeugt die aktuellen Magnetkonfigurationen
+- `field(x, y)` – berechnet das resultierende Magnetfeld
+- `traceWrapped(...)` – verfolgt eine Feldlinie
+- `drawEntireField()` – zeichnet das gesamte Feld
+- `drawSingleWrappedLine()` – zeichnet die Feldlinie durch den Kompass
+- `drawCompass()` – zeichnet und dreht die Kompassnadel
+- `drawBarMagnet()` – zeichnet den Stabmagneten
+- `drawRectMagnet()` – zeichnet den U-/Rechteckmagneten
+
+## Hinweis zum Modell
+
+Die Simulation ist bewusst ein qualitatives Unterrichtsmodell und keine numerische
+Finite-Elemente-Simulation. Das Feld des U-/Rechteckmagneten wird im Luftspalt
+zusätzlich geglättet, damit der wichtige Lerneffekt eines näherungsweise homogenen
+Magnetfeldes gut sichtbar wird.
+
+Die Weiterführung einer Feldlinie an der gegenüberliegenden Bildschirmkante ist
+eine Darstellungsentscheidung für den begrenzten sichtbaren Ausschnitt.

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Magnetfeldlinien – interaktive Simulation</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="page-header">
+      <h1>Magnetfeldlinien</h1>
+      <p>Interaktive Simulation für den Physikunterricht</p>
+    </header>
+
+    <section class="panel controls">
+      <div class="magnet-grid">
+        <fieldset>
+          <legend>Magnet 1</legend>
+
+          <div class="control-grid">
+            <label>
+              Typ
+              <select id="m1type">
+                <option value="bar">Stabmagnet</option>
+                <option value="rect">Rechteckmagnet</option>
+              </select>
+            </label>
+
+            <label>
+              Stärke <span id="s1out" class="value">1,0×</span>
+              <input id="s1" type="range" min="0.5" max="2" step="0.1" value="1" />
+            </label>
+          </div>
+
+          <button id="flip1" type="button">N/S tauschen</button>
+        </fieldset>
+
+        <fieldset>
+          <legend>Magnet 2</legend>
+
+          <div class="control-grid">
+            <label>
+              Typ
+              <select id="m2type">
+                <option value="off">Aus</option>
+                <option value="bar">Stabmagnet</option>
+                <option value="rect">Rechteckmagnet</option>
+              </select>
+            </label>
+
+            <label>
+              Stärke <span id="s2out" class="value">1,0×</span>
+              <input id="s2" type="range" min="0.5" max="2" step="0.1" value="1" disabled />
+            </label>
+          </div>
+
+          <button id="flip2" type="button" disabled>N/S tauschen</button>
+        </fieldset>
+      </div>
+
+      <div class="button-row">
+        <button id="effectToggle" class="effect-on" type="button" aria-pressed="true">
+          Magnetische Wirkung: AN
+        </button>
+        <span id="effectHint" class="hint">
+          Die Kompassnadel richtet sich automatisch aus.
+        </span>
+      </div>
+
+      <div class="button-row" role="group" aria-label="Feldlinienanzeige">
+        <button id="lineMode" class="active" type="button">Kompasslinie</button>
+        <button id="allMode" type="button">Gesamtes Feld</button>
+        <button id="offMode" type="button">Linien aus</button>
+      </div>
+    </section>
+
+    <section id="predictionPanel" class="prediction panel" hidden>
+      <div>
+        <h2>Vorhersagemodus</h2>
+        <p>
+          Verschiebe die Kompassnadel an eine Stelle und drehe sie so,
+          wie du ihre Ausrichtung vermutest. Schalte anschließend die
+          magnetische Wirkung wieder ein, um deine Vermutung zu prüfen.
+        </p>
+      </div>
+
+      <div class="prediction-controls">
+        <button id="rotateLeft" type="button">↶ 10°</button>
+
+        <label>
+          Manuelle Ausrichtung:
+          <strong><span id="angleOut">0</span>°</strong>
+          <input
+            id="angleSlider"
+            type="range"
+            min="0"
+            max="359"
+            step="1"
+            value="0"
+          />
+        </label>
+
+        <button id="rotateRight" type="button">10° ↷</button>
+      </div>
+    </section>
+
+    <section class="canvas-wrap">
+      <canvas
+        id="field"
+        aria-label="Magnetfeldsimulation. Tippen oder ziehen verschiebt den Kompass."
+      ></canvas>
+    </section>
+
+    <section class="compass-controls">
+      <div>
+        <strong>Kompass</strong>
+        <div id="readout" class="hint" aria-live="polite"></div>
+      </div>
+
+      <div class="nudge-grid" aria-label="Kompass schrittweise verschieben">
+        <span></span>
+        <button type="button" class="nudge" data-dx="0" data-dy="-14">↑</button>
+        <span></span>
+
+        <button type="button" class="nudge" data-dx="-14" data-dy="0">←</button>
+        <button type="button" class="nudge" data-dx="0" data-dy="14">↓</button>
+        <button type="button" class="nudge" data-dx="14" data-dy="0">→</button>
+      </div>
+    </section>
+
+    <section class="panel info">
+      <strong>Unterrichtsidee:</strong>
+      Zuerst die magnetische Wirkung ausschalten, die erwartete
+      Kompassrichtung einstellen und anschließend die Wirkung wieder
+      einschalten. Beim Rechteckmagneten ist im Luftspalt ein annähernd
+      homogenes Magnetfeld zu erkennen.
+    </section>
+
+    <footer>
+      Nordpol = rot · Südpol = grün · qualitatives Feldmodell
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
