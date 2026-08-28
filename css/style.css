@@ -204,13 +204,15 @@ label {
   background: var(--canvas);
 }
 
-canvas {
+#field {
   display: block;
   width: 100%;
   aspect-ratio: 16 / 10;
   min-height: 300px;
   max-height: 620px;
-  touch-action: pan-y;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
   cursor: crosshair;
 }
 

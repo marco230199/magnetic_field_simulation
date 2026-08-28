@@ -37,12 +37,14 @@
     flip2: false,
     manualAngle: 0,
     compass: { x: 0.5, y: 0.18 },
-    drag: false,
   };
 
   let W = 720;
   let H = 450;
   let dpr = 1;
+  let activePointerId = null;
+  let dragOffsetX = 0;
+  let dragOffsetY = 0;
 
   function cssVar(name, fallback) {
     const value = getComputedStyle(document.documentElement)
@@ -855,28 +857,6 @@
     draw();
   }
 
-  function moveCompass(event) {
-    const rect = canvas.getBoundingClientRect();
-
-    state.compass.x = Math.max(
-      0.025,
-      Math.min(
-        0.975,
-        (event.clientX - rect.left) / rect.width,
-      ),
-    );
-
-    state.compass.y = Math.max(
-      0.035,
-      Math.min(
-        0.965,
-        (event.clientY - rect.top) / rect.height,
-      ),
-    );
-
-    draw();
-  }
-
   function changeManualAngle(delta) {
     state.manualAngle = normalizeDegrees(
       state.manualAngle + delta,
@@ -887,23 +867,63 @@
   }
 
   canvas.addEventListener("pointerdown", (event) => {
-    state.drag = true;
-    canvas.setPointerCapture?.(event.pointerId);
-    moveCompass(event);
+    if (activePointerId !== null) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const px =
+      ((event.clientX - rect.left) / rect.width) * W;
+    const py =
+      ((event.clientY - rect.top) / rect.height) * H;
+    const cx = state.compass.x * W;
+    const cy = state.compass.y * H;
+
+    // Größeres Touch-Ziel als der gezeichnete Kompass (Radius 24 px).
+    if (Math.hypot(px - cx, py - cy) > 40) return;
+
+    activePointerId = event.pointerId;
+    dragOffsetX = px - cx;
+    dragOffsetY = py - cy;
+
+    canvas.setPointerCapture(event.pointerId);
   });
 
   canvas.addEventListener("pointermove", (event) => {
-    if (state.drag) {
-      moveCompass(event);
+    if (event.pointerId !== activePointerId) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const px =
+      ((event.clientX - rect.left) / rect.width) * W;
+    const py =
+      ((event.clientY - rect.top) / rect.height) * H;
+
+    state.compass.x = Math.max(
+      0.025,
+      Math.min(0.975, (px - dragOffsetX) / W),
+    );
+
+    state.compass.y = Math.max(
+      0.035,
+      Math.min(0.965, (py - dragOffsetY) / H),
+    );
+
+    draw();
+  });
+
+  function endDrag(event) {
+    if (event.pointerId !== activePointerId) return;
+
+    if (canvas.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
     }
-  });
 
-  canvas.addEventListener("pointerup", () => {
-    state.drag = false;
-  });
+    activePointerId = null;
+  }
 
-  canvas.addEventListener("pointercancel", () => {
-    state.drag = false;
+  canvas.addEventListener("pointerup", endDrag);
+  canvas.addEventListener("pointercancel", endDrag);
+
+  canvas.addEventListener("lostpointercapture", () => {
+    activePointerId = null;
   });
 
   document.querySelectorAll(".nudge").forEach((button) => {
