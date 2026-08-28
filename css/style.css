@@ -210,7 +210,8 @@ canvas {
   aspect-ratio: 16 / 10;
   min-height: 300px;
   max-height: 620px;
-  touch-action: pan-y;
+  touch-action: none;
+  overscroll-behavior: contain;
   cursor: crosshair;
 }
 
