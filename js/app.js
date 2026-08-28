@@ -888,23 +888,17 @@
 
   canvas.addEventListener("pointerdown", (event) => {
     state.drag = true;
-    event.preventDefault();
     canvas.setPointerCapture?.(event.pointerId);
     moveCompass(event);
   });
 
   canvas.addEventListener("pointermove", (event) => {
     if (state.drag) {
-      event.preventDefault();
       moveCompass(event);
     }
   });
 
   canvas.addEventListener("pointerup", () => {
-    state.drag = false;
-  });
-
-  canvas.addEventListener("pointerleave", () => {
     state.drag = false;
   });
 
