@@ -19,6 +19,8 @@
     rotateLeft: document.querySelector("#rotateLeft"),
     rotateRight: document.querySelector("#rotateRight"),
     lineMode: document.querySelector("#lineMode"),
+    magnet1Mode: document.querySelector("#magnet1Mode"),
+    magnet2Mode: document.querySelector("#magnet2Mode"),
     allMode: document.querySelector("#allMode"),
     offMode: document.querySelector("#offMode"),
     readout: document.querySelector("#readout"),
@@ -69,6 +71,13 @@
     el.s2.disabled = !secondMagnetOn;
     el.flip2.disabled = !secondMagnetOn;
 
+    if (
+      !secondMagnetOn &&
+      (state.mode === "magnet2" || state.mode === "all")
+    ) {
+      state.mode = "magnet1";
+    }
+
     el.effectToggle.textContent = state.magneticOn
       ? "Magnetische Wirkung: AN"
       : "Magnetische Wirkung: AUS";
@@ -95,8 +104,12 @@
     );
 
     el.lineMode.disabled = !state.magneticOn;
-    el.allMode.disabled = !state.magneticOn;
+    el.magnet1Mode.disabled = !state.magneticOn;
+    el.magnet2Mode.disabled = !state.magneticOn || !secondMagnetOn;
+    el.allMode.disabled = !state.magneticOn || !secondMagnetOn;
     el.offMode.disabled = !state.magneticOn;
+
+    updateModeButtons();
   }
 
   function magnets() {
@@ -196,8 +209,8 @@
     return sources;
   }
 
-  function allSources() {
-    return magnets().flatMap(pointSourcesFor);
+  function allSources(fieldMagnets = magnets()) {
+    return fieldMagnets.flatMap(pointSourcesFor);
   }
 
   function smoothstep(a, b, x) {
@@ -230,11 +243,11 @@
     };
   }
 
-  function field(x, y) {
+  function field(x, y, fieldMagnets = magnets()) {
     let bx = 0;
     let by = 0;
 
-    for (const source of allSources()) {
+    for (const source of allSources(fieldMagnets)) {
       const dx = x - source.x;
       const dy = y - source.y;
       const r2 = dx * dx + dy * dy + 115;
@@ -244,7 +257,7 @@
       by += factor * dy;
     }
 
-    for (const magnet of magnets()) {
+    for (const magnet of fieldMagnets) {
       const uniform = rectUniformContribution(magnet, x, y);
       bx += uniform.x;
       by += uniform.y;
@@ -257,82 +270,34 @@
     };
   }
 
-  function nearPole(x, y, wantedSign, radius = 9) {
-    return allSources().some(
+  function nearPole(x, y, wantedSign, radius = 9, fieldMagnets = magnets()) {
+    return allSources(fieldMagnets).some(
       (source) =>
         Math.sign(source.q) === wantedSign &&
         Math.hypot(x - source.x, y - source.y) < radius,
     );
   }
 
-  function boundaryCross(px, py, nx, ny) {
-    const candidates = [];
-    const dx = nx - px;
-    const dy = ny - py;
-
-    if (nx < 0 && dx !== 0) {
-      candidates.push({ t: (0 - px) / dx, edge: "left" });
-    }
-
-    if (nx > W && dx !== 0) {
-      candidates.push({ t: (W - px) / dx, edge: "right" });
-    }
-
-    if (ny < 0 && dy !== 0) {
-      candidates.push({ t: (0 - py) / dy, edge: "top" });
-    }
-
-    if (ny > H && dy !== 0) {
-      candidates.push({ t: (H - py) / dy, edge: "bottom" });
-    }
-
-    const valid = candidates
-      .filter((candidate) => candidate.t >= 0 && candidate.t <= 1)
-      .sort((a, b) => a.t - b.t);
-
-    if (!valid.length) {
-      return null;
-    }
-
-    const hit = valid[0];
-    const ix = px + dx * hit.t;
-    const iy = py + dy * hit.t;
-
-    if (hit.edge === "left") {
-      const y = Math.max(0, Math.min(H, iy));
-      return { exit: [0, y], enter: [W, y] };
-    }
-
-    if (hit.edge === "right") {
-      const y = Math.max(0, Math.min(H, iy));
-      return { exit: [W, y], enter: [0, y] };
-    }
-
-    if (hit.edge === "top") {
-      const x = Math.max(0, Math.min(W, ix));
-      return { exit: [x, 0], enter: [x, H] };
-    }
-
-    const x = Math.max(0, Math.min(W, ix));
-    return { exit: [x, H], enter: [x, 0] };
-  }
-
-  function traceWrapped(
+  function traceFieldLine(
     x,
     y,
     sign,
-    maxWraps = 8,
-    maxSteps = 2600,
+    maxSteps = 4000,
+    fieldMagnets = magnets(),
   ) {
-    const segments = [];
-
-    let segment = [[x, y]];
+    const points = [[x, y]];
     let px = x;
     let py = y;
-    let wraps = 0;
+
+    // Feldlinien werden auch außerhalb des sichtbaren Canvas weiterverfolgt.
+    // Der Canvas schneidet diesen Teil beim Zeichnen automatisch ab. Eine oben
+    // austretende Linie kann so an ihrer tatsächlichen Rückkehrposition wieder
+    // sichtbar werden, statt künstlich an die untere Kante versetzt zu werden.
+    const horizontalLimit = W * 5;
+    const verticalLimit = H * 7;
 
     for (let i = 0; i < maxSteps; i += 1) {
-      const b = field(px, py);
+      const b = field(px, py, fieldMagnets);
 
       if (b.m < 1e-11) {
         break;
@@ -342,57 +307,47 @@
       const nx = px + (sign * step * b.x) / b.m;
       const ny = py + (sign * step * b.y) / b.m;
 
-      const cross = boundaryCross(px, py, nx, ny);
-
-      if (cross) {
-        segment.push(cross.exit);
-
-        if (segment.length > 1) {
-          segments.push(segment);
-        }
-
-        segment = [cross.enter];
-        px = cross.enter[0];
-        py = cross.enter[1];
-
-        wraps += 1;
-
-        if (wraps >= maxWraps) {
-          break;
-        }
-
-        continue;
-      }
-
       px = nx;
       py = ny;
-      segment.push([px, py]);
+      points.push([px, py]);
 
       const targetSign = sign > 0 ? -1 : 1;
 
-      if (i > 10 && nearPole(px, py, targetSign, 8)) {
+      if (i > 10 && nearPole(px, py, targetSign, 8, fieldMagnets)) {
+        break;
+      }
+
+      if (
+        px < -horizontalLimit ||
+        px > W + horizontalLimit ||
+        py < -verticalLimit ||
+        py > H + verticalLimit
+      ) {
         break;
       }
     }
 
-    if (segment.length > 1) {
-      segments.push(segment);
-    }
-
-    return segments;
+    return [points];
   }
 
-  function drawPolyline(points, width = 1.2, alpha = 0.7) {
+  function drawPolyline(
+    points,
+    width = 1.2,
+    alpha = 0.7,
+    color = cssVar("--field", COLORS.field),
+    lineDash = [],
+  ) {
     if (points.length < 2) {
       return;
     }
 
     ctx.save();
-    ctx.strokeStyle = cssVar("--field", COLORS.field);
+    ctx.strokeStyle = color;
     ctx.globalAlpha = alpha;
     ctx.lineWidth = width;
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
+    ctx.setLineDash(lineDash);
 
     ctx.beginPath();
     ctx.moveTo(points[0][0], points[0][1]);
@@ -405,7 +360,12 @@
     ctx.restore();
   }
 
-  function drawArrow(points, reverse = false) {
+  function drawArrow(
+    points,
+    reverse = false,
+    color = cssVar("--field", COLORS.field),
+    alpha = 1,
+  ) {
     if (points.length < 14) {
       return;
     }
@@ -423,7 +383,8 @@
     ctx.save();
     ctx.translate(a[0], a[1]);
     ctx.rotate(angle);
-    ctx.fillStyle = cssVar("--field", COLORS.field);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = alpha;
 
     ctx.beginPath();
     ctx.moveTo(7, 0);
@@ -440,12 +401,14 @@
     width,
     alpha,
     reverse = false,
+    color = cssVar("--field", COLORS.field),
+    lineDash = [],
   ) {
     for (const segment of segments) {
-      drawPolyline(segment, width, alpha);
+      drawPolyline(segment, width, alpha, color, lineDash);
 
       if (segment.length > 14) {
-        drawArrow(segment, reverse);
+        drawArrow(segment, reverse, color, alpha);
       }
     }
   }
@@ -508,42 +471,53 @@
     return seeds;
   }
 
-  function drawSingleWrappedLine() {
+  function drawSingleFieldLine() {
     const x = state.compass.x * W;
     const y = state.compass.y * H;
 
     drawSegments(
-      traceWrapped(x, y, -1, 8, 2600),
+      traceFieldLine(x, y, -1, 4000),
       2.2,
       0.98,
       true,
     );
 
     drawSegments(
-      traceWrapped(x, y, 1, 8, 2600),
+      traceFieldLine(x, y, 1, 4000),
       2.2,
       0.98,
       false,
     );
   }
 
-  function drawEntireField() {
-    for (const magnet of magnets()) {
+  function drawEntireField(
+    fieldMagnets = magnets(),
+    seedMagnets = fieldMagnets,
+    style = {},
+  ) {
+    for (const magnet of seedMagnets) {
       const seeds =
         magnet.type === "bar"
           ? barSeeds(magnet)
           : rectSeeds(magnet);
 
       for (const seed of seeds) {
-        const segments = traceWrapped(
+        const segments = traceFieldLine(
           seed[0],
           seed[1],
           1,
-          3,
-          1800,
+          3000,
+          fieldMagnets,
         );
 
-        drawSegments(segments, 1.15, 0.64, false);
+        drawSegments(
+          segments,
+          style.width ?? 1.15,
+          style.alpha ?? 0.64,
+          false,
+          style.color ?? cssVar("--field", COLORS.field),
+          style.lineDash ?? [],
+        );
       }
     }
   }
@@ -554,12 +528,24 @@
     }
 
     if (state.mode === "line") {
-      drawSingleWrappedLine();
+      drawSingleFieldLine();
       return;
     }
 
     if (state.mode === "all") {
       drawEntireField();
+      return;
+    }
+
+    const fieldMagnets = magnets();
+
+    if (state.mode === "magnet1") {
+      drawEntireField([fieldMagnets[0]]);
+      return;
+    }
+
+    if (state.mode === "magnet2" && fieldMagnets[1]) {
+      drawEntireField([fieldMagnets[1]]);
     }
   }
 
@@ -809,20 +795,33 @@
     drawCompass();
   }
 
+  function updateModeButtons() {
+    [
+      [el.lineMode, "line"],
+      [el.magnet1Mode, "magnet1"],
+      [el.magnet2Mode, "magnet2"],
+      [el.allMode, "all"],
+      [el.offMode, "off"],
+    ].forEach(([button, name]) => {
+      button.classList.toggle("active", state.mode === name);
+    });
+  }
+
   function setMode(mode) {
     if (!state.magneticOn) {
       return;
     }
 
+    if (
+      (mode === "magnet2" || mode === "all") &&
+      el.m2type.value === "off"
+    ) {
+      return;
+    }
+
     state.mode = mode;
 
-    [
-      [el.lineMode, "line"],
-      [el.allMode, "all"],
-      [el.offMode, "off"],
-    ].forEach(([button, name]) => {
-      button.classList.toggle("active", mode === name);
-    });
+    updateUI();
 
     draw();
   }
@@ -844,13 +843,7 @@
 
       state.mode = "off";
 
-      [
-        [el.lineMode, "line"],
-        [el.allMode, "all"],
-        [el.offMode, "off"],
-      ].forEach(([button, name]) => {
-        button.classList.toggle("active", name === "off");
-      });
+      updateModeButtons();
     }
 
     updateUI();
@@ -998,6 +991,14 @@
 
   el.allMode.addEventListener("click", () => {
     setMode("all");
+  });
+
+  el.magnet1Mode.addEventListener("click", () => {
+    setMode("magnet1");
+  });
+
+  el.magnet2Mode.addEventListener("click", () => {
+    setMode("magnet2");
   });
 
   el.offMode.addEventListener("click", () => {

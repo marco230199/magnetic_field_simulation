@@ -13,6 +13,7 @@ Eine kleine HTML/CSS/JavaScript-Simulation für den Physikunterricht.
 - automatische Ausrichtung der Kompassnadel
 - einzelne Feldlinie durch die Kompassposition
 - Anzeige des gesamten Magnetfelds
+- getrennte Anzeige des Feldes von Magnet 1, Magnet 2 oder beider Magnete
 - Vorhersagemodus:
   - magnetische Wirkung aus
   - Kompass manuell drehen
@@ -94,9 +95,9 @@ Wichtige Funktionen:
 
 - `magnets()` – erzeugt die aktuellen Magnetkonfigurationen
 - `field(x, y)` – berechnet das resultierende Magnetfeld
-- `traceWrapped(...)` – verfolgt eine Feldlinie
+- `traceFieldLine(...)` – verfolgt eine Feldlinie auch außerhalb der Zeichenfläche
 - `drawEntireField()` – zeichnet das gesamte Feld
-- `drawSingleWrappedLine()` – zeichnet die Feldlinie durch den Kompass
+- `drawSingleFieldLine()` – zeichnet die Feldlinie durch den Kompass
 - `drawCompass()` – zeichnet und dreht die Kompassnadel
 - `drawBarMagnet()` – zeichnet den Stabmagneten
 - `drawRectMagnet()` – zeichnet den U-/Rechteckmagneten
@@ -108,5 +109,7 @@ Finite-Elemente-Simulation. Das Feld des U-/Rechteckmagneten wird im Luftspalt
 zusätzlich geglättet, damit der wichtige Lerneffekt eines näherungsweise homogenen
 Magnetfeldes gut sichtbar wird.
 
-Die Weiterführung einer Feldlinie an der gegenüberliegenden Bildschirmkante ist
-eine Darstellungsentscheidung für den begrenzten sichtbaren Ausschnitt.
+Feldlinien werden rechnerisch über die sichtbare Zeichenfläche hinaus verfolgt.
+Dadurch treten sie nach einem außerhalb liegenden Bogen an der physikalisch
+passenden Stelle wieder ins Bild ein, statt an die gegenüberliegende Kante
+versetzt zu werden.
