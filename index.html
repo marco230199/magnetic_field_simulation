@@ -24,6 +24,7 @@
               <select id="m1type">
                 <option value="bar">Stabmagnet</option>
                 <option value="rect">Rechteckmagnet</option>
+                <option value="off">Aus</option>
               </select>
             </label>
 
@@ -57,6 +58,27 @@
 
           <button id="flip2" type="button" disabled>N/S tauschen</button>
         </fieldset>
+
+        <fieldset class="conductor-controls">
+          <legend>Leiter 1 (Draufsicht)</legend>
+          <label>
+            Stromstärke und Richtung
+            <span id="currentOut" class="value">1,0 A · heraus (⊙)</span>
+            <input id="current" type="range" min="-2" max="2" step="0.1" value="1" />
+          </label>
+          <button id="conductorToggle" class="active" type="button" aria-pressed="true">Leiter 1 ausblenden</button>
+        </fieldset>
+
+        <fieldset class="conductor-controls">
+          <legend>Leiter 2 (frei beweglich)</legend>
+          <label>
+            Stromstärke und Richtung
+            <span id="current2Out" class="value">1,0 A · hinein (⊗)</span>
+            <input id="current2" type="range" min="-2" max="2" step="0.1" value="-1" disabled />
+          </label>
+          <button id="conductor2Toggle" type="button" aria-pressed="false">Leiter 2 anzeigen</button>
+          <span class="hint">Leiter 2 auf der Zeichenfläche mit Maus oder Finger ziehen.</span>
+        </fieldset>
       </div>
 
       <div class="button-row">
@@ -72,7 +94,9 @@
         <button id="lineMode" class="active" type="button">Kompasslinie</button>
         <button id="magnet1Mode" type="button">Feld Magnet 1</button>
         <button id="magnet2Mode" type="button" disabled>Feld Magnet 2</button>
-        <button id="allMode" type="button" disabled>Feld beider Magnete</button>
+        <button id="conductorMode" type="button">Feld Leiter 1</button>
+        <button id="conductor2Mode" type="button" disabled>Feld Leiter 2</button>
+        <button id="allMode" type="button">Gesamtfeld</button>
         <button id="offMode" type="button">Linien aus</button>
       </div>
     </section>
@@ -110,7 +134,7 @@
     <section class="canvas-wrap">
       <canvas
         id="field"
-        aria-label="Magnetfeldsimulation. Den Kompass antippen und ziehen, um ihn zu verschieben."
+        aria-label="Magnetfeldsimulation mit Magneten und stromdurchflossenen Leitern. Kompass und Leiter 2 können verschoben werden."
       ></canvas>
     </section>
 
@@ -144,6 +168,6 @@
     </footer>
   </main>
 
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=20260909-symmetric-seeds"></script>
 </body>
 </html>

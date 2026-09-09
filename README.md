@@ -8,7 +8,12 @@ Eine kleine HTML/CSS/JavaScript-Simulation für den Physikunterricht.
 - U-/Rechteckmagnet mit Öffnung nach oben
 - Nordpol rot, Südpol grün
 - optional zweiter Magnet
+- beide Magnete können einzeln ausgeschaltet werden
 - einstellbare Magnetstärke
+- zwei zuschaltbare stromdurchflossene Leiter in Draufsicht
+- Stromstärke und Richtung einstellbar (Kreuz hinein, Punkt heraus)
+- wenige, stromabhängig dichter werdende Feldlinien
+- zweiter Leiter frei verschiebbar und gemeinsames Überlagerungsfeld
 - bewegliche Kompassnadel
 - automatische Ausrichtung der Kompassnadel
 - einzelne Feldlinie durch die Kompassposition

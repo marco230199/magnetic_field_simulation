@@ -11,6 +11,12 @@
     s2out: document.querySelector("#s2out"),
     flip1: document.querySelector("#flip1"),
     flip2: document.querySelector("#flip2"),
+    current: document.querySelector("#current"),
+    currentOut: document.querySelector("#currentOut"),
+    conductorToggle: document.querySelector("#conductorToggle"),
+    current2: document.querySelector("#current2"),
+    current2Out: document.querySelector("#current2Out"),
+    conductor2Toggle: document.querySelector("#conductor2Toggle"),
     effectToggle: document.querySelector("#effectToggle"),
     effectHint: document.querySelector("#effectHint"),
     predictionPanel: document.querySelector("#predictionPanel"),
@@ -21,6 +27,8 @@
     lineMode: document.querySelector("#lineMode"),
     magnet1Mode: document.querySelector("#magnet1Mode"),
     magnet2Mode: document.querySelector("#magnet2Mode"),
+    conductorMode: document.querySelector("#conductorMode"),
+    conductor2Mode: document.querySelector("#conductor2Mode"),
     allMode: document.querySelector("#allMode"),
     offMode: document.querySelector("#offMode"),
     readout: document.querySelector("#readout"),
@@ -37,6 +45,9 @@
     magneticOn: true,
     flip1: false,
     flip2: false,
+    conductorOn: true,
+    conductor2On: false,
+    conductor2: { x: 0.72, y: 0.72 },
     manualAngle: 0,
     compass: { x: 0.5, y: 0.18 },
   };
@@ -45,6 +56,7 @@
   let H = 450;
   let dpr = 1;
   let activePointerId = null;
+  let dragTarget = null;
   let dragOffsetX = 0;
   let dragOffsetY = 0;
 
@@ -67,16 +79,28 @@
     el.s1out.textContent = formatStrength(el.s1.value);
     el.s2out.textContent = formatStrength(el.s2.value);
 
+    const firstMagnetOn = el.m1type.value !== "off";
     const secondMagnetOn = el.m2type.value !== "off";
+    const conductorOn = state.conductorOn;
+    const conductor2On = state.conductor2On;
+    el.s1.disabled = !firstMagnetOn;
+    el.flip1.disabled = !firstMagnetOn;
     el.s2.disabled = !secondMagnetOn;
     el.flip2.disabled = !secondMagnetOn;
 
     if (
       !secondMagnetOn &&
-      (state.mode === "magnet2" || state.mode === "all")
+      state.mode === "magnet2"
     ) {
-      state.mode = "magnet1";
+      state.mode = "line";
     }
+
+    if (!firstMagnetOn && state.mode === "magnet1") state.mode = "line";
+    if (!conductorOn && state.mode === "conductor") state.mode = "line";
+    if (!conductor2On && state.mode === "conductor2") state.mode = "line";
+
+    updateConductorControl(1, conductorOn, Number(el.current.value));
+    updateConductorControl(2, conductor2On, Number(el.current2.value));
 
     el.effectToggle.textContent = state.magneticOn
       ? "Magnetische Wirkung: AN"
@@ -104,40 +128,68 @@
     );
 
     el.lineMode.disabled = !state.magneticOn;
-    el.magnet1Mode.disabled = !state.magneticOn;
+    el.magnet1Mode.disabled = !state.magneticOn || !firstMagnetOn;
     el.magnet2Mode.disabled = !state.magneticOn || !secondMagnetOn;
-    el.allMode.disabled = !state.magneticOn || !secondMagnetOn;
+    el.conductorMode.disabled = !state.magneticOn || !conductorOn;
+    el.conductor2Mode.disabled = !state.magneticOn || !conductor2On;
+    const sourceCount = Number(firstMagnetOn) + Number(secondMagnetOn) +
+      Number(conductorOn) + Number(conductor2On);
+    el.allMode.disabled = !state.magneticOn || sourceCount === 0;
     el.offMode.disabled = !state.magneticOn;
 
     updateModeButtons();
   }
 
-  function magnets() {
-    const twoMagnets = el.m2type.value !== "off";
-    const cy = H * 0.57;
+  function updateConductorControl(id, on, current) {
+    const output = id === 1 ? el.currentOut : el.current2Out;
+    const slider = id === 1 ? el.current : el.current2;
+    const button = id === 1 ? el.conductorToggle : el.conductor2Toggle;
+    const direction = current < 0
+      ? "in den Bildschirm hinein (⊗)"
+      : current > 0
+        ? "aus dem Bildschirm heraus (⊙)"
+        : "kein Strom";
+    output.textContent = `${Math.abs(current).toFixed(1).replace(".", ",")} A · ${direction}`;
+    slider.disabled = !on;
+    button.textContent = on ? `Leiter ${id} ausblenden` : `Leiter ${id} anzeigen`;
+    button.setAttribute("aria-pressed", on ? "true" : "false");
+    button.classList.toggle("active", on);
+  }
 
-    return [
-      {
+  function magnets() {
+    const cy = H * 0.57;
+    const configs = [
+      { id: 1, type: el.m1type.value, strength: Number(el.s1.value), flip: state.flip1 },
+      { id: 2, type: el.m2type.value, strength: Number(el.s2.value), flip: state.flip2 },
+    ].filter((magnet) => magnet.type !== "off");
+    const slots = configs.length + Number(state.conductorOn);
+    return configs.map((magnet, index) => ({
+      ...magnet,
+      cx: W * (index + 1) / (slots + 1),
+      cy,
+    }));
+  }
+
+  function conductors() {
+    const result = [];
+    if (state.conductorOn) {
+      const magnetCount = Number(el.m1type.value !== "off") + Number(el.m2type.value !== "off");
+      result.push({
         id: 1,
-        type: el.m1type.value,
-        strength: Number(el.s1.value),
-        flip: state.flip1,
-        cx: twoMagnets ? W * 0.29 : W * 0.5,
-        cy,
-      },
-      ...(twoMagnets
-        ? [
-            {
-              id: 2,
-              type: el.m2type.value,
-              strength: Number(el.s2.value),
-              flip: state.flip2,
-              cx: W * 0.71,
-              cy,
-            },
-          ]
-        : []),
-    ];
+        cx: W * (magnetCount + 1) / (magnetCount + 2),
+        cy: H * 0.57,
+        current: Number(el.current.value),
+      });
+    }
+    if (state.conductor2On) {
+      result.push({
+        id: 2,
+        cx: state.conductor2.x * W,
+        cy: state.conductor2.y * H,
+        current: Number(el.current2.value),
+      });
+    }
+    return result;
   }
 
   function rectGeom(magnet) {
@@ -243,7 +295,7 @@
     };
   }
 
-  function field(x, y, fieldMagnets = magnets()) {
+  function field(x, y, fieldMagnets = magnets(), fieldConductors = conductors()) {
     let bx = 0;
     let by = 0;
 
@@ -261,6 +313,15 @@
       const uniform = rectUniformContribution(magnet, x, y);
       bx += uniform.x;
       by += uniform.y;
+    }
+
+    for (const conductor of fieldConductors) {
+      const dx = x - conductor.cx;
+      const dy = y - conductor.cy;
+      const r2 = dx * dx + dy * dy + 180;
+      const factor = conductor.current * 0.00135 / r2;
+      bx += dy * factor;
+      by -= dx * factor;
     }
 
     return {
@@ -284,6 +345,7 @@
     sign,
     maxSteps = 4000,
     fieldMagnets = magnets(),
+    fieldConductors = conductors(),
   ) {
     const points = [[x, y]];
     let px = x;
@@ -296,20 +358,40 @@
     const horizontalLimit = W * 5;
     const verticalLimit = H * 7;
 
+    function unitDirection(atX, atY) {
+      const b = field(atX, atY, fieldMagnets, fieldConductors);
+      if (b.m < 1e-11) return null;
+      return {
+        x: sign * b.x / b.m,
+        y: sign * b.y / b.m,
+      };
+    }
+
     for (let i = 0; i < maxSteps; i += 1) {
-      const b = field(px, py, fieldMagnets);
-
-      if (b.m < 1e-11) {
-        break;
-      }
-
       const step = 3;
-      const nx = px + (sign * step * b.x) / b.m;
-      const ny = py + (sign * step * b.y) / b.m;
+      const firstDirection = unitDirection(px, py);
+      if (!firstDirection) break;
+
+      // Mittelpunktverfahren statt eines einfachen Euler-Schritts. Dadurch
+      // driften geschlossene Leiter-Feldlinien nicht mehr als enge Spiralen.
+      const midX = px + firstDirection.x * step * 0.5;
+      const midY = py + firstDirection.y * step * 0.5;
+      const midDirection = unitDirection(midX, midY);
+      if (!midDirection) break;
+
+      const nx = px + midDirection.x * step;
+      const ny = py + midDirection.y * step;
 
       px = nx;
       py = ny;
       points.push([px, py]);
+
+      // Eine geschlossene Feldlinie nach dem ersten vollständigen Umlauf
+      // beenden, statt denselben Weg immer wieder zu überzeichnen.
+      if (i > 50 && Math.hypot(px - x, py - y) < step * 1.5) {
+        points.push([x, y]);
+        break;
+      }
 
       const targetSign = sign > 0 ? -1 : 1;
 
@@ -471,6 +553,70 @@
     return seeds;
   }
 
+  function conductorSeeds(conductor, countOverride = null, fieldConductors = []) {
+    if (Math.abs(conductor.current) < 0.01) return [];
+    const maxRadius = Math.min(145, W * 0.2);
+    const count = countOverride ?? Math.max(
+      1,
+      Math.round(1 + 2.5 * Math.abs(conductor.current)),
+    );
+    // Im gemeinsamen Feld nach außen entlang der Verbindungsachse starten.
+    // So liegen die Startpunkte auch beim Verschieben der Leiter symmetrisch
+    // und geraten nicht über die Mitte in die Schleifen des anderen Leiters.
+    const other = fieldConductors.find(
+      (item) => item.id !== conductor.id && Math.abs(item.current) >= 0.01,
+    );
+    const dx = other ? conductor.cx - other.cx : 1;
+    const dy = other ? conductor.cy - other.cy : 0;
+    const distance = Math.hypot(dx, dy);
+    const directionX = distance > 0 ? dx / distance : 1;
+    const directionY = distance > 0 ? dy / distance : 0;
+    const seeds = [];
+    for (let i = 0; i < count; i += 1) {
+      const radius = count === 1 ? 70 : 38 + i * (maxRadius - 38) / (count - 1);
+      seeds.push([
+        conductor.cx + directionX * radius,
+        conductor.cy + directionY * radius,
+      ]);
+    }
+    return seeds;
+  }
+
+  function drawConductorField(conductor) {
+    for (const seed of conductorSeeds(conductor)) {
+      const radius = seed[0] - conductor.cx;
+      const direction = conductor.current > 0 ? -1 : 1;
+      const points = [];
+      for (let i = 0; i <= 100; i += 1) {
+        const angle = direction * i / 100 * Math.PI * 2;
+        points.push([
+          conductor.cx + Math.cos(angle) * radius,
+          conductor.cy + Math.sin(angle) * radius,
+        ]);
+      }
+      drawSegments([points], 1.3, 0.75);
+    }
+  }
+
+  function traceConductorLine(seed, fieldMagnets, fieldConductors) {
+    const forward = traceFieldLine(
+      seed[0], seed[1], 1, 2200, fieldMagnets, fieldConductors,
+    )[0];
+
+    const forwardEnd = forward[forward.length - 1];
+    if (
+      forward.length > 50 &&
+      forwardEnd[0] === seed[0] && forwardEnd[1] === seed[1]
+    ) {
+      return forward;
+    }
+
+    const backward = traceFieldLine(
+      seed[0], seed[1], -1, 2200, fieldMagnets, fieldConductors,
+    )[0].reverse();
+    return [...backward.slice(0, -1), ...forward];
+  }
+
   function drawSingleFieldLine() {
     const x = state.compass.x * W;
     const y = state.compass.y * H;
@@ -494,6 +640,8 @@
     fieldMagnets = magnets(),
     seedMagnets = fieldMagnets,
     style = {},
+    fieldConductors = conductors(),
+    seedConductors = fieldConductors,
   ) {
     for (const magnet of seedMagnets) {
       const seeds =
@@ -508,12 +656,41 @@
           1,
           3000,
           fieldMagnets,
+          fieldConductors,
         );
 
         drawSegments(
           segments,
           style.width ?? 1.15,
           style.alpha ?? 0.64,
+          false,
+          style.color ?? cssVar("--field", COLORS.field),
+          style.lineDash ?? [],
+        );
+      }
+    }
+
+    const activeSeedConductors = seedConductors.filter(
+      (conductor) => Math.abs(conductor.current) >= 0.01,
+    );
+    const maxCurrent = Math.max(
+      0,
+      ...activeSeedConductors.map((conductor) => Math.abs(conductor.current)),
+    );
+    // Im gemeinsamen Feld genügen wenige repräsentative Linien:
+    // ca. 6 bei 1 A und ca. 10 bei 2 A für zwei aktive Leiter.
+    const combinedTotal = Math.round(2 + 4 * maxCurrent);
+    const seedsPerConductor = activeSeedConductors.length > 1
+      ? Math.max(1, Math.ceil(combinedTotal / activeSeedConductors.length))
+      : null;
+
+    for (const conductor of activeSeedConductors) {
+      for (const seed of conductorSeeds(conductor, seedsPerConductor, fieldConductors)) {
+        const points = traceConductorLine(seed, fieldMagnets, fieldConductors);
+        drawSegments(
+          [points],
+          style.width ?? 1.3,
+          style.alpha ?? 0.72,
           false,
           style.color ?? cssVar("--field", COLORS.field),
           style.lineDash ?? [],
@@ -533,6 +710,12 @@
     }
 
     if (state.mode === "all") {
+      const fieldMagnets = magnets();
+      const fieldConductors = conductors();
+      if (fieldMagnets.length === 0 && fieldConductors.length === 1) {
+        drawConductorField(fieldConductors[0]);
+        return;
+      }
       drawEntireField();
       return;
     }
@@ -540,12 +723,21 @@
     const fieldMagnets = magnets();
 
     if (state.mode === "magnet1") {
-      drawEntireField([fieldMagnets[0]]);
+      const magnet = fieldMagnets.find((item) => item.id === 1);
+      if (magnet) drawEntireField([magnet], [magnet], {}, [], []);
       return;
     }
 
-    if (state.mode === "magnet2" && fieldMagnets[1]) {
-      drawEntireField([fieldMagnets[1]]);
+    if (state.mode === "magnet2") {
+      const magnet = fieldMagnets.find((item) => item.id === 2);
+      if (magnet) drawEntireField([magnet], [magnet], {}, [], []);
+      return;
+    }
+
+    if (state.mode === "conductor" || state.mode === "conductor2") {
+      const wantedId = state.mode === "conductor" ? 1 : 2;
+      const conductor = conductors().find((item) => item.id === wantedId);
+      if (conductor) drawConductorField(conductor);
     }
   }
 
@@ -708,6 +900,48 @@
     }
   }
 
+  function drawConductors() {
+    for (const conductor of conductors()) {
+      const r = 29;
+      ctx.save();
+      ctx.fillStyle = cssVar("--panel", "#fff");
+      ctx.strokeStyle = cssVar("--text", "#222");
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(conductor.cx, conductor.cy, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = cssVar("--text", "#222");
+      if (conductor.current > 0.01) {
+        ctx.beginPath();
+        ctx.arc(conductor.cx, conductor.cy, 5, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (conductor.current < -0.01) {
+        const d = 9;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(conductor.cx - d, conductor.cy - d);
+        ctx.lineTo(conductor.cx + d, conductor.cy + d);
+        ctx.moveTo(conductor.cx + d, conductor.cy - d);
+        ctx.lineTo(conductor.cx - d, conductor.cy + d);
+        ctx.stroke();
+      } else {
+        ctx.font = "700 16px system-ui";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("0", conductor.cx, conductor.cy);
+      }
+
+      ctx.fillStyle = cssVar("--muted", "#667085");
+      ctx.font = "700 12px system-ui";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText(`Leiter ${conductor.id}`, conductor.cx, conductor.cy + r + 7);
+      ctx.restore();
+    }
+  }
+
   function compassAngle() {
     if (!state.magneticOn) {
       return (
@@ -792,6 +1026,7 @@
 
     drawFieldLines();
     drawMagnets();
+    drawConductors();
     drawCompass();
   }
 
@@ -800,6 +1035,8 @@
       [el.lineMode, "line"],
       [el.magnet1Mode, "magnet1"],
       [el.magnet2Mode, "magnet2"],
+      [el.conductorMode, "conductor"],
+      [el.conductor2Mode, "conductor2"],
       [el.allMode, "all"],
       [el.offMode, "off"],
     ].forEach(([button, name]) => {
@@ -813,11 +1050,14 @@
     }
 
     if (
-      (mode === "magnet2" || mode === "all") &&
-      el.m2type.value === "off"
+      mode === "magnet2" && el.m2type.value === "off"
     ) {
       return;
     }
+    if (mode === "magnet1" && el.m1type.value === "off") return;
+    if (mode === "conductor" && !state.conductorOn) return;
+    if (mode === "conductor2" && !state.conductor2On) return;
+    if (mode === "all" && magnets().length === 0 && conductors().length === 0) return;
 
     state.mode = mode;
 
@@ -870,12 +1110,20 @@
     const cx = state.compass.x * W;
     const cy = state.compass.y * H;
 
-    // Größeres Touch-Ziel als der gezeichnete Kompass (Radius 24 px).
-    if (Math.hypot(px - cx, py - cy) > 40) return;
+    const conductor2 = conductors().find((item) => item.id === 2);
+    if (conductor2 && Math.hypot(px - conductor2.cx, py - conductor2.cy) <= 42) {
+      dragTarget = "conductor2";
+      dragOffsetX = px - conductor2.cx;
+      dragOffsetY = py - conductor2.cy;
+    } else if (Math.hypot(px - cx, py - cy) <= 40) {
+      dragTarget = "compass";
+      dragOffsetX = px - cx;
+      dragOffsetY = py - cy;
+    } else {
+      return;
+    }
 
     activePointerId = event.pointerId;
-    dragOffsetX = px - cx;
-    dragOffsetY = py - cy;
 
     canvas.setPointerCapture(event.pointerId);
   });
@@ -889,15 +1137,9 @@
     const py =
       ((event.clientY - rect.top) / rect.height) * H;
 
-    state.compass.x = Math.max(
-      0.025,
-      Math.min(0.975, (px - dragOffsetX) / W),
-    );
-
-    state.compass.y = Math.max(
-      0.035,
-      Math.min(0.965, (py - dragOffsetY) / H),
-    );
+    const target = dragTarget === "conductor2" ? state.conductor2 : state.compass;
+    target.x = Math.max(0.045, Math.min(0.955, (px - dragOffsetX) / W));
+    target.y = Math.max(0.065, Math.min(0.935, (py - dragOffsetY) / H));
 
     draw();
   });
@@ -910,6 +1152,7 @@
     }
 
     activePointerId = null;
+    dragTarget = null;
   }
 
   canvas.addEventListener("pointerup", endDrag);
@@ -917,6 +1160,7 @@
 
   canvas.addEventListener("lostpointercapture", () => {
     activePointerId = null;
+    dragTarget = null;
   });
 
   document.querySelectorAll(".nudge").forEach((button) => {
@@ -943,7 +1187,7 @@
     });
   });
 
-  [el.m1type, el.m2type, el.s1, el.s2].forEach(
+  [el.m1type, el.m2type, el.s1, el.s2, el.current, el.current2].forEach(
     (control) => {
       control.addEventListener("input", () => {
         updateUI();
@@ -962,6 +1206,18 @@
       state.flip2 = !state.flip2;
       draw();
     }
+  });
+
+  el.conductorToggle.addEventListener("click", () => {
+    state.conductorOn = !state.conductorOn;
+    updateUI();
+    draw();
+  });
+
+  el.conductor2Toggle.addEventListener("click", () => {
+    state.conductor2On = !state.conductor2On;
+    updateUI();
+    draw();
   });
 
   el.effectToggle.addEventListener("click", () => {
@@ -999,6 +1255,14 @@
 
   el.magnet2Mode.addEventListener("click", () => {
     setMode("magnet2");
+  });
+
+  el.conductorMode.addEventListener("click", () => {
+    setMode("conductor");
+  });
+
+  el.conductor2Mode.addEventListener("click", () => {
+    setMode("conductor2");
   });
 
   el.offMode.addEventListener("click", () => {
