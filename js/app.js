@@ -579,6 +579,17 @@
         conductor.cy + directionY * radius,
       ]);
     }
+    // Große äußere Schleifen zeigen bei Gegenströmen die fast geraden
+    // Abschnitte nahe der Mitte. Ihre Größe folgt dem Leiterabstand.
+    if (other && conductor.current * other.current < 0 && distance > 0) {
+      const outerRadius = Math.max(maxRadius, distance);
+      for (const scale of [2, 4]) {
+        seeds.push([
+          conductor.cx + directionX * outerRadius * scale,
+          conductor.cy + directionY * outerRadius * scale,
+        ]);
+      }
+    }
     return seeds;
   }
 
@@ -678,7 +689,8 @@
       ...activeSeedConductors.map((conductor) => Math.abs(conductor.current)),
     );
     // Im gemeinsamen Feld genügen wenige repräsentative Linien:
-    // ca. 6 bei 1 A und ca. 10 bei 2 A für zwei aktive Leiter.
+    // ca. 6 bei 1 A und ca. 10 bei 2 A für zwei aktive Leiter,
+    // ergänzt um äußere Schleifen bei entgegengesetzten Strömen.
     const combinedTotal = Math.round(2 + 4 * maxCurrent);
     const seedsPerConductor = activeSeedConductors.length > 1
       ? Math.max(1, Math.ceil(combinedTotal / activeSeedConductors.length))
