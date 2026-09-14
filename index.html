@@ -79,6 +79,18 @@
           <button id="conductor2Toggle" type="button" aria-pressed="false">Leiter 2 anzeigen</button>
           <span class="hint">Leiter 2 auf der Zeichenfläche mit Maus oder Finger ziehen.</span>
         </fieldset>
+        <fieldset class="conductor-controls">
+          <legend>Spule (Seitenansicht)</legend>
+          <label>
+            Stromstärke und Richtung
+            <span id="coilCurrentOut" class="value">1,0 A · Nordpol rechts</span>
+            <input id="coilCurrent" type="range" min="-2" max="2" step="0.1" value="1" disabled />
+          </label>
+          <button id="coilToggle" type="button" aria-pressed="false">Spule anzeigen</button>
+          <span class="hint">10 Windungen · innen stark und nahezu parallel, außen gebogen.
+            „Feld Spule“ zeigt ihr eigenes Feld; der Kompass reagiert auf das Gesamtfeld.
+            Für die Spule allein die anderen Quellen ausblenden.</span>
+        </fieldset>
       </div>
 
       <div class="button-row">
@@ -96,6 +108,7 @@
         <button id="magnet2Mode" type="button" disabled>Feld Magnet 2</button>
         <button id="conductorMode" type="button">Feld Leiter 1</button>
         <button id="conductor2Mode" type="button" disabled>Feld Leiter 2</button>
+        <button id="coilMode" type="button" disabled>Feld Spule</button>
         <button id="allMode" type="button">Gesamtfeld</button>
         <button id="offMode" type="button">Linien aus</button>
       </div>
@@ -134,7 +147,7 @@
     <section class="canvas-wrap">
       <canvas
         id="field"
-        aria-label="Magnetfeldsimulation mit Magneten und stromdurchflossenen Leitern. Kompass und Leiter 2 können verschoben werden."
+        aria-label="Magnetfeldsimulation mit Magneten, Spule und stromdurchflossenen Leitern. Kompass und Leiter 2 können verschoben werden."
       ></canvas>
     </section>
 
@@ -168,6 +181,6 @@
     </footer>
   </main>
 
-  <script src="js/app.js?v=20260909-outer-lines"></script>
+  <script src="js/app.js?v=20260910-coil"></script>
 </body>
 </html>
