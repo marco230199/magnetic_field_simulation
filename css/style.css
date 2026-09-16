@@ -13,6 +13,10 @@
   --accent: #2f6fed;
   --accent-soft: #e9f0ff;
   --field: #3f759d;
+  --magnet1-field: #2563eb;
+  --magnet2-field: #b45309;
+  --conductor1-field: #2563eb;
+  --conductor2-field: #b45309;
   --north: #f04444;
   --south: #218c4b;
 }
@@ -28,6 +32,10 @@
     --accent: #7aa2ff;
     --accent-soft: #263450;
     --field: #7fb1d1;
+    --magnet1-field: #75a7ff;
+    --magnet2-field: #ffb454;
+    --conductor1-field: #75a7ff;
+    --conductor2-field: #ffb454;
   }
 }
 
@@ -266,4 +274,25 @@ footer {
   canvas {
     min-height: 320px;
   }
+}
+
+.conductor-key,
+.magnet-key {
+  font-weight: 600;
+}
+
+.conductor-key-1 {
+  color: var(--conductor1-field);
+}
+
+.conductor-key-2 {
+  color: var(--conductor2-field);
+}
+
+.magnet-key-1 {
+  color: var(--magnet1-field);
+}
+
+.magnet-key-2 {
+  color: var(--magnet2-field);
 }

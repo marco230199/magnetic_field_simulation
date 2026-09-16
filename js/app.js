@@ -15,6 +15,8 @@
     s2out: document.querySelector("#s2out"),
     flip1: document.querySelector("#flip1"),
     flip2: document.querySelector("#flip2"),
+    reverseCurrent: document.querySelector("#reverseCurrent"),
+    reverseCurrent2: document.querySelector("#reverseCurrent2"),
     current: document.querySelector("#current"),
     currentOut: document.querySelector("#currentOut"),
     conductorToggle: document.querySelector("#conductorToggle"),
@@ -31,8 +33,12 @@
     lineMode: document.querySelector("#lineMode"),
     magnet1Mode: document.querySelector("#magnet1Mode"),
     magnet2Mode: document.querySelector("#magnet2Mode"),
+    magnetsMode: document.querySelector("#magnetsMode"),
     conductorMode: document.querySelector("#conductorMode"),
     conductor2Mode: document.querySelector("#conductor2Mode"),
+    conductorsMode: document.querySelector("#conductorsMode"),
+    conductorLegend: document.querySelector("#conductorLegend"),
+    magnetLegend: document.querySelector("#magnetLegend"),
     allMode: document.querySelector("#allMode"),
     offMode: document.querySelector("#offMode"),
     readout: document.querySelector("#readout"),
@@ -45,12 +51,14 @@
   };
 
   const state = {
-    mode: "line",
-    magneticOn: true,
+    mode: "off",
+    magneticOn: false,
     flip1: false,
     flip2: false,
     coilOn: false,
-    conductorOn: true,
+    currentDirection: 1,
+    current2Direction: -1,
+    conductorOn: false,
     conductor2On: false,
     conductor2: { x: 0.72, y: 0.72 },
     manualAngle: 0,
@@ -101,8 +109,15 @@
     }
 
     if (!firstMagnetOn && state.mode === "magnet1") state.mode = "line";
+    if ((!firstMagnetOn || !secondMagnetOn) && state.mode === "magnets") {
+      state.mode = firstMagnetOn ? "magnet1" : secondMagnetOn ? "magnet2" : "line";
+    }
     if (!conductorOn && state.mode === "conductor") state.mode = "line";
     if (!conductor2On && state.mode === "conductor2") state.mode = "line";
+
+    if ((!conductorOn || !conductor2On) && state.mode === "conductors") {
+      state.mode = conductorOn ? "conductor" : conductor2On ? "conductor2" : "line";
+    }
 
     if (!state.coilOn && state.mode === "coil") state.mode = "line";
     el.coilCurrent.disabled = !state.coilOn;
@@ -114,8 +129,8 @@
     el.coilCurrentOut.textContent = `${coilCurrent.toFixed(1).replace(".", ",")} A · ${
       coilCurrent === 0 ? "kein Feld" : coilCurrent > 0 ? "Nordpol rechts" : "Nordpol links"}`;
 
-    updateConductorControl(1, conductorOn, Number(el.current.value));
-    updateConductorControl(2, conductor2On, Number(el.current2.value));
+    updateConductorControl(1, conductorOn, conductorCurrent(1));
+    updateConductorControl(2, conductor2On, conductorCurrent(2));
 
     el.effectToggle.textContent = state.magneticOn
       ? "Magnetische Wirkung: AN"
@@ -145,8 +160,12 @@
     el.lineMode.disabled = !state.magneticOn;
     el.magnet1Mode.disabled = !state.magneticOn || !firstMagnetOn;
     el.magnet2Mode.disabled = !state.magneticOn || !secondMagnetOn;
+    el.magnetsMode.disabled = !state.magneticOn || !firstMagnetOn || !secondMagnetOn;
     el.conductorMode.disabled = !state.magneticOn || !conductorOn;
     el.conductor2Mode.disabled = !state.magneticOn || !conductor2On;
+    el.conductorsMode.disabled = !state.magneticOn || !conductorOn || !conductor2On;
+    el.conductorLegend.hidden = !state.magneticOn || state.mode !== "conductors";
+    el.magnetLegend.hidden = !state.magneticOn || state.mode !== "magnets";
     const sourceCount = Number(firstMagnetOn) + Number(secondMagnetOn) +
       Number(conductorOn) + Number(conductor2On) + Number(state.coilOn);
     el.allMode.disabled = !state.magneticOn || sourceCount === 0;
@@ -155,10 +174,22 @@
     updateModeButtons();
   }
 
+  function conductorCurrent(id) {
+    const magnitude = Number((id === 1 ? el.current : el.current2).value);
+    return magnitude * (id === 1 ? state.currentDirection : state.current2Direction);
+  }
+
   function updateConductorControl(id, on, current) {
     const output = id === 1 ? el.currentOut : el.current2Out;
     const slider = id === 1 ? el.current : el.current2;
     const button = id === 1 ? el.conductorToggle : el.conductor2Toggle;
+    const reverseButton = id === 1 ? el.reverseCurrent : el.reverseCurrent2;
+    const selectedDirection = id === 1 ? state.currentDirection : state.current2Direction;
+    reverseButton.disabled = !on;
+    reverseButton.title = selectedDirection > 0
+      ? "Aktuell: aus dem Bildschirm heraus (⊙)"
+      : "Aktuell: in den Bildschirm hinein (⊗)";
+    reverseButton.textContent = `Richtung tauschen (${selectedDirection > 0 ? "⊙ → ⊗" : "⊗ → ⊙"})`;
     const direction = current < 0
       ? "in den Bildschirm hinein (⊗)"
       : current > 0
@@ -223,7 +254,7 @@
         id: 1,
         cx: W * (magnetCount + 1) / (magnetCount + 2),
         cy: H * 0.57,
-        current: Number(el.current.value),
+        current: conductorCurrent(1),
       });
     }
     if (state.conductor2On) {
@@ -231,7 +262,7 @@
         id: 2,
         cx: state.conductor2.x * W,
         cy: state.conductor2.y * H,
-        current: Number(el.current2.value),
+        current: conductorCurrent(2),
       });
     }
     return result;
@@ -393,10 +424,13 @@
     maxSteps = 4000,
     fieldMagnets = magnets(),
     fieldConductors = conductors(),
+    wrapFlatHorizontalLines = false,
   ) {
-    const points = [[x, y]];
+    const segments = [[[x, y]]];
+    let points = segments[0];
     let px = x;
     let py = y;
+    let horizontalWraps = 0;
 
     // Feldlinien werden auch außerhalb des sichtbaren Canvas weiterverfolgt.
     // Der Canvas schneidet diesen Teil beim Zeichnen automatisch ab. Eine oben
@@ -433,6 +467,24 @@
       py = ny;
       points.push([px, py]);
 
+      // Die axiale Feldlinie eines idealisierten Stabmagneten schließt sich
+      // erst im Unendlichen. Beim alleinstehenden Stabmagneten setzen wir
+      // deshalb nur nahezu waagerechte Linien am gegenüberliegenden Rand
+      // fort. Getrennte Segmente verhindern eine Querlinie durch den Canvas.
+      if (
+        wrapFlatHorizontalLines &&
+        horizontalWraps < 1 &&
+        (px < 0 || px > W) &&
+        Math.abs(midDirection.x) > 0.94
+      ) {
+        px = px < 0 ? W : 0;
+        py = Math.max(0, Math.min(H, py));
+        points = [[px, py]];
+        segments.push(points);
+        horizontalWraps += 1;
+        continue;
+      }
+
       // Eine geschlossene Feldlinie nach dem ersten vollständigen Umlauf
       // beenden, statt denselben Weg immer wieder zu überzeichnen.
       if (i > 50 && Math.hypot(px - x, py - y) < step * 1.5) {
@@ -456,7 +508,7 @@
       }
     }
 
-    return [points];
+    return segments;
   }
 
   function drawPolyline(
@@ -542,7 +594,7 @@
     }
   }
 
-  function barSeeds(magnet) {
+  function barSeeds(magnet, excludeAxial = false) {
     const half = Math.min(72, W * 0.105);
     const sign = magnet.flip ? -1 : 1;
     const count = Math.round(10 + 8 * magnet.strength);
@@ -551,6 +603,10 @@
 
     for (let i = 0; i < count; i += 1) {
       const angle = (i / count) * Math.PI * 2;
+
+      if (excludeAxial && Math.abs(Math.sin(angle)) < 1e-10) {
+        continue;
+      }
 
       seeds.push([
         northX + Math.cos(angle) * 12,
@@ -561,10 +617,31 @@
     return seeds;
   }
 
+  function barAxialSegments(magnet) {
+    const half = Math.min(72, W * 0.105);
+    const sign = magnet.flip ? -1 : 1;
+    const northX = sign > 0 ? magnet.cx - half : magnet.cx + half;
+    const southX = sign > 0 ? magnet.cx + half : magnet.cx - half;
+    const northOutsideX = northX - sign * 12;
+    const southOutsideX = southX + sign * 12;
+
+    function straightSegment(fromX, toX) {
+      const count = Math.max(2, Math.ceil(Math.abs(toX - fromX) / 3));
+      return Array.from({ length: count + 1 }, (_, index) => [
+        fromX + (toX - fromX) * index / count,
+        magnet.cy,
+      ]);
+    }
+
+    return sign > 0
+      ? [straightSegment(northOutsideX, 0), straightSegment(W, southOutsideX)]
+      : [straightSegment(northOutsideX, W), straightSegment(0, southOutsideX)];
+  }
+
   function rectSeeds(magnet) {
     const g = rectGeom(magnet);
     const sign = magnet.flip ? -1 : 1;
-    const count = Math.round(10 + 8 * magnet.strength);
+    const count = Math.round(3 + 3 * magnet.strength);
     const sourceX = sign > 0 ? g.gapL + 5 : g.gapR - 5;
     const seeds = [];
     const margin = 14;
@@ -640,7 +717,7 @@
     return seeds;
   }
 
-  function drawConductorField(conductor) {
+  function drawConductorField(conductor, color = cssVar("--field", COLORS.field), lineDash = []) {
     for (const seed of conductorSeeds(conductor)) {
       const radius = seed[0] - conductor.cx;
       const direction = conductor.current > 0 ? -1 : 1;
@@ -652,7 +729,7 @@
           conductor.cy + Math.sin(angle) * radius,
         ]);
       }
-      drawSegments([points], 1.3, 0.75);
+      drawSegments([points], 1.3, 0.85, false, color, lineDash);
     }
   }
 
@@ -701,6 +778,11 @@
     fieldConductors = conductors(),
     seedConductors = fieldConductors,
   ) {
+    const wrapSingleBarMagnet =
+      fieldMagnets.length === 1 &&
+      fieldMagnets[0].type === "bar" &&
+      fieldConductors.length === 0;
+
     for (const magnet of seedMagnets) {
       if (magnet.type === "coil") {
         drawCoilField(magnet, fieldMagnets, fieldConductors);
@@ -708,7 +790,7 @@
       }
       const seeds =
         magnet.type === "bar"
-          ? barSeeds(magnet)
+          ? barSeeds(magnet, wrapSingleBarMagnet)
           : rectSeeds(magnet);
 
       for (const seed of seeds) {
@@ -719,10 +801,22 @@
           3000,
           fieldMagnets,
           fieldConductors,
+          wrapSingleBarMagnet,
         );
 
         drawSegments(
           segments,
+          style.width ?? 1.15,
+          style.alpha ?? 0.64,
+          false,
+          style.color ?? cssVar("--field", COLORS.field),
+          style.lineDash ?? [],
+        );
+      }
+
+      if (magnet.type === "bar" && wrapSingleBarMagnet) {
+        drawSegments(
+          barAxialSegments(magnet),
           style.width ?? 1.15,
           style.alpha ?? 0.64,
           false,
@@ -769,6 +863,37 @@
 
     if (state.mode === "line") {
       drawSingleFieldLine();
+      return;
+    }
+
+    if (state.mode === "conductors") {
+      for (const conductor of conductors()) {
+        drawConductorField(conductor,
+          cssVar(conductor.id === 1 ? "--conductor1-field" : "--conductor2-field",
+            conductor.id === 1 ? "#2563eb" : "#b45309"),
+          conductor.id === 1 ? [] : [7, 4]);
+      }
+      return;
+    }
+
+    if (state.mode === "magnets") {
+      for (const magnet of magnets().filter((item) => item.type !== "coil")) {
+        const isFirst = magnet.id === 1;
+        drawEntireField(
+          [magnet],
+          [magnet],
+          {
+            color: cssVar(
+              isFirst ? "--magnet1-field" : "--magnet2-field",
+              isFirst ? "#2563eb" : "#b45309",
+            ),
+            lineDash: isFirst ? [] : [7, 4],
+            alpha: 0.8,
+          },
+          [],
+          [],
+        );
+      }
       return;
     }
 
@@ -1173,12 +1298,15 @@
       [el.lineMode, "line"],
       [el.magnet1Mode, "magnet1"],
       [el.magnet2Mode, "magnet2"],
+      [el.magnetsMode, "magnets"],
       [el.conductorMode, "conductor"],
       [el.conductor2Mode, "conductor2"],
+      [el.conductorsMode, "conductors"],
       [el.allMode, "all"],
       [el.offMode, "off"],
     ].forEach(([button, name]) => {
       button.classList.toggle("active", state.mode === name);
+      button.setAttribute("aria-pressed", String(state.mode === name));
     });
   }
 
@@ -1194,8 +1322,13 @@
     }
     if (mode === "coil" && !state.coilOn) return;
     if (mode === "magnet1" && el.m1type.value === "off") return;
+    if (
+      mode === "magnets" &&
+      (el.m1type.value === "off" || el.m2type.value === "off")
+    ) return;
     if (mode === "conductor" && !state.conductorOn) return;
     if (mode === "conductor2" && !state.conductor2On) return;
+    if (mode === "conductors" && (!state.conductorOn || !state.conductor2On)) return;
     if (mode === "all" && magnets().length === 0 && conductors().length === 0) return;
 
     state.mode = mode;
@@ -1355,6 +1488,15 @@
     }
   });
 
+  [el.reverseCurrent, el.reverseCurrent2].forEach((button, index) => {
+    button.addEventListener("click", () => {
+      const key = index === 0 ? "currentDirection" : "current2Direction";
+      state[key] *= -1;
+      updateUI();
+      draw();
+    });
+  });
+
   el.conductorToggle.addEventListener("click", () => {
     state.conductorOn = !state.conductorOn;
     updateUI();
@@ -1404,6 +1546,8 @@
     setMode("magnet2");
   });
 
+  el.magnetsMode.addEventListener("click", () => setMode("magnets"));
+
   el.conductorMode.addEventListener("click", () => {
     setMode("conductor");
   });
@@ -1411,6 +1555,8 @@
   el.conductor2Mode.addEventListener("click", () => {
     setMode("conductor2");
   });
+
+  el.conductorsMode.addEventListener("click", () => setMode("conductors"));
 
   el.offMode.addEventListener("click", () => {
     setMode("off");

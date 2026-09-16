@@ -2,6 +2,9 @@
 
 Eine kleine HTML/CSS/JavaScript-Simulation für den Physikunterricht.
 
+Beim ersten Aufruf ist nur Magnet 1 als Stabmagnet sichtbar. Die magnetische
+Wirkung und die Feldlinien sind zunächst ausgeschaltet.
+
 ## Enthaltene Funktionen
 
 - Stabmagnet
@@ -92,6 +95,7 @@ Simulation und Physikmodell:
 - Magnetpositionen
 - Feldberechnung
 - Feldlinien
+- getrennt gefärbte Einzelfelder beider Magnete und beider Leiter
 - Kompassausrichtung
 - Vorhersagemodus
 - Feldliniendichte
@@ -117,4 +121,7 @@ Magnetfeldes gut sichtbar wird.
 Feldlinien werden rechnerisch über die sichtbare Zeichenfläche hinaus verfolgt.
 Dadurch treten sie nach einem außerhalb liegenden Bogen an der physikalisch
 passenden Stelle wieder ins Bild ein, statt an die gegenüberliegende Kante
-versetzt zu werden.
+versetzt zu werden. Eine Ausnahme ist die nahezu waagerechte axiale Feldlinie
+eines allein dargestellten Stabmagneten: Da sie sich im Punktpolmodell erst im
+Unendlichen schließt, wird sie am gegenüberliegenden horizontalen Bildrand
+fortgesetzt.
