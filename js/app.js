@@ -157,19 +157,19 @@
       Math.round(normalizeDegrees(state.manualAngle)),
     );
 
-    el.lineMode.disabled = !state.magneticOn;
+    el.lineMode.disabled = false;
     el.magnet1Mode.disabled = !state.magneticOn || !firstMagnetOn;
     el.magnet2Mode.disabled = !state.magneticOn || !secondMagnetOn;
-    el.magnetsMode.disabled = !state.magneticOn || !firstMagnetOn || !secondMagnetOn;
+    el.magnetsMode.disabled = !firstMagnetOn || !secondMagnetOn;
     el.conductorMode.disabled = !state.magneticOn || !conductorOn;
     el.conductor2Mode.disabled = !state.magneticOn || !conductor2On;
     el.conductorsMode.disabled = !state.magneticOn || !conductorOn || !conductor2On;
     el.conductorLegend.hidden = !state.magneticOn || state.mode !== "conductors";
-    el.magnetLegend.hidden = !state.magneticOn || state.mode !== "magnets";
+    el.magnetLegend.hidden = state.mode !== "magnets";
     const sourceCount = Number(firstMagnetOn) + Number(secondMagnetOn) +
       Number(conductorOn) + Number(conductor2On) + Number(state.coilOn);
-    el.allMode.disabled = !state.magneticOn || sourceCount === 0;
-    el.offMode.disabled = !state.magneticOn;
+    el.allMode.disabled = sourceCount === 0;
+    el.offMode.disabled = false;
 
     updateModeButtons();
   }
@@ -857,7 +857,7 @@
   }
 
   function drawFieldLines() {
-    if (!state.magneticOn || state.mode === "off") {
+    if (state.mode === "off") {
       return;
     }
 
@@ -1311,7 +1311,8 @@
   }
 
   function setMode(mode) {
-    if (!state.magneticOn) {
+    const availableWithoutMagneticEffect = ["line", "magnets", "all", "off"];
+    if (!state.magneticOn && !availableWithoutMagneticEffect.includes(mode)) {
       return;
     }
 
@@ -1353,7 +1354,13 @@
         );
       }
 
-      state.mode = "off";
+      if (
+        state.mode !== "line" &&
+        state.mode !== "magnets" &&
+        state.mode !== "all"
+      ) {
+        state.mode = "off";
+      }
 
       updateModeButtons();
     }

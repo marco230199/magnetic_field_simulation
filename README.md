@@ -25,6 +25,7 @@ Wirkung und die Feldlinien sind zunächst ausgeschaltet.
 - Vorhersagemodus:
   - magnetische Wirkung aus
   - Kompass manuell drehen
+  - Kompasslinie, Felder beider Magnete oder Gesamtfeld bei Bedarf einblenden
   - anschließend Lösung prüfen
 - näherungsweise homogenes Feld im Luftspalt des Rechteckmagneten
 
