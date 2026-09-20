@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Magnetfeldlinien – interaktive Simulation</title>
-  <link rel="stylesheet" href="css/style.css?v=20260916-default-state" />
+  <link rel="stylesheet" href="css/style.css?v=20260919-filings" />
 </head>
 <body>
   <main class="app">
@@ -23,7 +23,7 @@
               Typ
               <select id="m1type">
                 <option value="bar">Stabmagnet</option>
-                <option value="rect">Rechteckmagnet</option>
+                <option value="rect">Hufeisenmagnet</option>
                 <option value="off">Aus</option>
               </select>
             </label>
@@ -46,7 +46,7 @@
               <select id="m2type">
                 <option value="off">Aus</option>
                 <option value="bar">Stabmagnet</option>
-                <option value="rect">Rechteckmagnet</option>
+                <option value="rect">Hufeisenmagnet</option>
               </select>
             </label>
 
@@ -121,6 +121,10 @@
         <span class="conductor-key conductor-key-2">Leiter 2: orange, gestrichelt</span>
         <br>Einzelfelder beider Leiter. Der Kompass reagiert auf das Gesamtfeld aller aktiven Quellen.
       </div>
+      <div class="button-row">
+        <button id="toggle-filings" type="button" aria-pressed="false" aria-describedby="filingsHint">Eisenspäne</button>
+        <span id="filingsHint" class="hint">Stäbchen entlang einer Feldlinie des Gesamtfelds – unabhängig vom Kompassmodus.</span>
+      </div>
       <div id="magnetLegend" class="hint" hidden>
         <span class="magnet-key magnet-key-1">Magnet 1: blau, durchgezogen</span> ·
         <span class="magnet-key magnet-key-2">Magnet 2: orange, gestrichelt</span>
@@ -186,7 +190,7 @@
       <strong>Unterrichtsidee:</strong>
       Zuerst die magnetische Wirkung ausschalten, die erwartete
       Kompassrichtung einstellen und anschließend die Wirkung wieder
-      einschalten. Beim Rechteckmagneten ist im Luftspalt ein annähernd
+      einschalten. Beim Hufeisenmagneten ist im Luftspalt ein annähernd
       homogenes Magnetfeld zu erkennen.
     </section>
 
@@ -195,6 +199,6 @@
     </footer>
   </main>
 
-  <script src="js/app.js?v=20260916-default-state"></script>
+  <script src="js/app.js?v=20260919-filings"></script>
 </body>
 </html>

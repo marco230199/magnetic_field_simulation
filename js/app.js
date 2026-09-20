@@ -3,6 +3,7 @@
   const ctx = canvas.getContext("2d");
 
   const el = {
+    filingsToggle: document.querySelector("#toggle-filings"),
     coilToggle: document.querySelector("#coilToggle"),
     coilCurrent: document.querySelector("#coilCurrent"),
     coilCurrentOut: document.querySelector("#coilCurrentOut"),
@@ -72,6 +73,112 @@
   let dragTarget = null;
   let dragOffsetX = 0;
   let dragOffsetY = 0;
+  let filings = [];
+  let filingsActive = false;
+  let filingsSignature = "";
+  let filingsFrame = null;
+  let filingsTime = 0;
+
+  function generateFilings(seedX, seedY, count = 60) {
+    filings = [];
+    if (field(seedX, seedY).m < 1e-11) return;
+    const points = traceConductorLine([seedX, seedY], magnets(), conductors());
+    // Nur einen zusammenhängenden, sichtbaren Zweig verwenden.
+    let branch = [];
+    let longest = [];
+    for (const point of points) {
+      if (point[0] >= 8 && point[0] <= W - 8 && point[1] >= 8 && point[1] <= H - 8) {
+        branch.push(point);
+        if (branch.length > longest.length) longest = branch;
+      } else {
+        branch = [];
+      }
+    }
+    if (longest.length < 2) return;
+    const distances = [0];
+    for (let i = 1; i < longest.length; i += 1) {
+      distances.push(distances[i - 1] + Math.hypot(
+        longest[i][0] - longest[i - 1][0], longest[i][1] - longest[i - 1][1],
+      ));
+    }
+    const length = distances[distances.length - 1];
+    // Auf kleinen Flächen weniger Späne, damit die Stäbchen getrennt bleiben.
+    count = Math.min(count, Math.floor(length / 10));
+    let segment = 1;
+    for (let i = 0; i < count; i += 1) {
+      const distance = (i + 0.5) * length / count;
+      while (segment < distances.length - 1 && distances[segment] < distance) segment += 1;
+      const a = longest[segment - 1];
+      const b = longest[segment];
+      const t = (distance - distances[segment - 1]) / (distances[segment] - distances[segment - 1]);
+      const position = { x: a[0] + (b[0] - a[0]) * t, y: a[1] + (b[1] - a[1]) * t };
+      const vector = field(position.x, position.y);
+      const targetAngle = Math.atan2(vector.y, vector.x);
+      filings.push({ position, angle: targetAngle + (Math.random() - 0.5) * Math.PI, targetAngle });
+    }
+  }
+
+  function updateFilings(dt) {
+    let moving = false;
+    const damping = 1 - Math.exp(-10 * dt);
+    for (const filing of filings) {
+      const b = field(filing.position.x, filing.position.y);
+      if (b.m < 1e-11) continue;
+      filing.targetAngle = Math.atan2(b.y, b.x);
+      // Ein unmarkiertes Stäbchen besitzt dieselbe Achse nach einer halben Drehung.
+      const difference = filing.targetAngle - filing.angle;
+      const delta = Math.atan2(Math.sin(2 * difference), Math.cos(2 * difference)) / 2;
+      filing.angle += delta * damping;
+      if (Math.abs(delta) > 0.002) moving = true;
+    }
+    return moving;
+  }
+
+  function drawFilings(context) {
+    context.save();
+    context.fillStyle = cssVar("--filings", "#454950");
+    for (const filing of filings) {
+      context.save();
+      context.translate(filing.position.x, filing.position.y);
+      context.rotate(filing.angle);
+      context.fillRect(-4, -1.25, 8, 2.5);
+      context.restore();
+    }
+    context.restore();
+  }
+
+  function animateFilings(time) {
+    filingsFrame = null;
+    if (!filingsActive) return;
+    const dt = Math.min(0.05, Math.max(0, (time - filingsTime) / 1000));
+    filingsTime = time;
+    const moving = updateFilings(dt);
+    draw();
+    if (moving && filingsFrame === null) filingsFrame = requestAnimationFrame(animateFilings);
+  }
+
+  function refreshFilings() {
+    const sources = magnets();
+    const wires = conductors();
+    const signature = JSON.stringify([W, H, sources, wires]);
+    if (signature === filingsSignature) return;
+    filingsSignature = signature;
+    const source = sources.find((item) => item.type !== "coil" || Math.abs(item.current) > 0.01);
+    const wire = wires.find((item) => Math.abs(item.current) > 0.01);
+    if (source) {
+      const offset = source.type === "bar" ? Math.min(240, H * 0.4)
+        : source.type === "rect" ? H * 0.24 : source.radius * 0.6;
+      generateFilings(source.cx, source.cy - offset);
+    } else if (wire) {
+      generateFilings(wire.cx, wire.cy - Math.min(110, H * 0.25));
+    } else {
+      filings = [];
+    }
+    if (filings.length && filingsFrame === null) {
+      filingsTime = performance.now();
+      filingsFrame = requestAnimationFrame(animateFilings);
+    }
+  }
 
   function cssVar(name, fallback) {
     const value = getComputedStyle(document.documentElement)
@@ -1287,6 +1394,10 @@
     ctx.fillRect(0, 0, W, H);
 
     drawFieldLines();
+    if (filingsActive) {
+      refreshFilings();
+      drawFilings(ctx);
+    }
     drawMagnets();
     drawConductors();
     drawCompass();
@@ -1474,6 +1585,17 @@
       });
     },
   );
+
+  el.filingsToggle.addEventListener("click", () => {
+    filingsActive = !filingsActive;
+    el.filingsToggle.classList.toggle("active", filingsActive);
+    el.filingsToggle.setAttribute("aria-pressed", String(filingsActive));
+    filingsSignature = "";
+    if (filingsFrame !== null) cancelAnimationFrame(filingsFrame);
+    filingsFrame = null;
+    if (!filingsActive) filings = [];
+    draw();
+  });
 
   el.coilToggle.addEventListener("click", () => {
     state.coilOn = !state.coilOn;

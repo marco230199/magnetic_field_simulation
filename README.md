@@ -8,7 +8,7 @@ Wirkung und die Feldlinien sind zunächst ausgeschaltet.
 ## Enthaltene Funktionen
 
 - Stabmagnet
-- U-/Rechteckmagnet mit Öffnung nach oben
+- U-/Hufeisenmagnet mit Öffnung nach oben
 - Nordpol rot, Südpol grün
 - optional zweiter Magnet
 - beide Magnete können einzeln ausgeschaltet werden
@@ -27,7 +27,7 @@ Wirkung und die Feldlinien sind zunächst ausgeschaltet.
   - Kompass manuell drehen
   - Kompasslinie, Felder beider Magnete oder Gesamtfeld bei Bedarf einblenden
   - anschließend Lösung prüfen
-- näherungsweise homogenes Feld im Luftspalt des Rechteckmagneten
+- näherungsweise homogenes Feld im Luftspalt des Hufeisenmagneten
 
 ## Projektstruktur
 
@@ -110,12 +110,12 @@ Wichtige Funktionen:
 - `drawSingleFieldLine()` – zeichnet die Feldlinie durch den Kompass
 - `drawCompass()` – zeichnet und dreht die Kompassnadel
 - `drawBarMagnet()` – zeichnet den Stabmagneten
-- `drawRectMagnet()` – zeichnet den U-/Rechteckmagneten
+- `drawRectMagnet()` – zeichnet den U-/Hufeisenmagneten
 
 ## Hinweis zum Modell
 
 Die Simulation ist bewusst ein qualitatives Unterrichtsmodell und keine numerische
-Finite-Elemente-Simulation. Das Feld des U-/Rechteckmagneten wird im Luftspalt
+Finite-Elemente-Simulation. Das Feld des U-/Hufeisenmagneten wird im Luftspalt
 zusätzlich geglättet, damit der wichtige Lerneffekt eines näherungsweise homogenen
 Magnetfeldes gut sichtbar wird.
 
