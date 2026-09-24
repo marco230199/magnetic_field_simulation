@@ -5,18 +5,32 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 
-function simulation() {
+function simulation(turns = 10) {
   let source = fs.readFileSync(path.join(__dirname, '../js/app.js'), 'utf8');
   source = source.slice(0, source.indexOf('  canvas.addEventListener("pointerdown"')) +
     'globalThis.api = { coil, field, traceConductorLine, state };})();';
   const context = { document: { querySelector: (id) => ({
-    value: id.includes('type') ? 'off' : '1', getContext: () => ({}),
+    value: id.includes('type') ? 'off' : id === '#coilTurns' ? String(turns) : '1',
+    getContext: () => ({}),
   }) } };
   vm.createContext(context);
   vm.runInContext(source, context);
   context.api.state.conductorOn = false;
   return context.api;
 }
+
+test('more turns strengthen the central field at constant current and length', () => {
+  let previousStrength = 0;
+  for (const turns of [2, 5, 10, 20]) {
+    const api = simulation(turns);
+    const coil = api.coil();
+    assert.equal(coil.turns, turns);
+    const b = api.field(coil.cx, coil.cy, [coil], []);
+    assert.ok(Number.isFinite(b.m) && b.m > previousStrength);
+    assert.ok(b.x > 0);
+    previousStrength = b.m;
+  }
+});
 
 test('coil interior is approximately uniform and reverses with current', () => {
   const api = simulation();

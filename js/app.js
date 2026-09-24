@@ -7,6 +7,8 @@
     coilToggle: document.querySelector("#coilToggle"),
     coilCurrent: document.querySelector("#coilCurrent"),
     coilCurrentOut: document.querySelector("#coilCurrentOut"),
+    coilTurns: document.querySelector("#coilTurns"),
+    coilTurnsOut: document.querySelector("#coilTurnsOut"),
     coilMode: document.querySelector("#coilMode"),
     m1type: document.querySelector("#m1type"),
     m2type: document.querySelector("#m2type"),
@@ -228,6 +230,8 @@
 
     if (!state.coilOn && state.mode === "coil") state.mode = "line";
     el.coilCurrent.disabled = !state.coilOn;
+    el.coilTurns.disabled = !state.coilOn;
+    el.coilTurnsOut.textContent = `${el.coilTurns.value} Windungen`;
     el.coilMode.disabled = !state.magneticOn || !state.coilOn;
     el.coilToggle.textContent = state.coilOn ? "Spule ausblenden" : "Spule anzeigen";
     el.coilToggle.setAttribute("aria-pressed", String(state.coilOn));
@@ -331,7 +335,7 @@
     return {
       id: "coil", type: "coil", cx: W * 0.5, cy: H * (hasOthers ? 0.27 : 0.52),
       half: Math.min(140, W * 0.29), radius: Math.min(43, H * 0.105),
-      current: Number(el.coilCurrent.value), turns: 10,
+      current: Number(el.coilCurrent.value), turns: Number(el.coilTurns.value),
     };
   }
 
@@ -1225,20 +1229,76 @@
 
   function drawCoil(source) {
     ctx.save();
-    // Kreisförmige Windungen erscheinen in der Seitenansicht als Ellipsen.
+    // Eine durchgehende Schraubenlinie statt voneinander isolierter Ringe.
     const spacing = source.half * 2 / source.turns;
-    ctx.strokeStyle = "#bd803e";
-    ctx.lineWidth = 2.5;
-    for (let i = 0; i < source.turns; i += 1) {
-      const x = source.cx - source.half + (i + 0.5) * spacing;
-      ctx.beginPath();
-      ctx.ellipse(x, source.cy, spacing * 0.48, source.radius, 0, 0, Math.PI * 2);
-      ctx.globalAlpha = 0.65;
+    const left = source.cx - source.half;
+    const right = source.cx + source.half;
+    const top = source.cy - source.radius;
+    const terminalY = source.cy + source.radius + 52;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    const strokeWire = (front) => {
+      ctx.strokeStyle = front ? "#986025" : "#ad895c";
+      ctx.lineWidth = 5;
       ctx.stroke();
+      ctx.strokeStyle = front ? "#efbb68" : "#d5b68b";
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+    };
+    // Anschlussdrähte gehen ohne Unterbrechung in die erste/letzte Windung über.
+    for (const side of [-1, 1]) {
+      const endX = side < 0 ? left : right;
+      const leadX = endX + side * 28;
+      ctx.beginPath();
+      ctx.moveTo(leadX, terminalY - 7);
+      ctx.lineTo(leadX, top + 18);
+      ctx.quadraticCurveTo(leadX, top, endX, top);
+      strokeWire(true);
     }
-    ctx.globalAlpha = 1;
+    // Hintere Halbumläufe zuerst, vordere anschließend: Überkreuzungen bleiben lesbar.
+    for (const front of [false, true]) {
+      for (let i = 0; i < source.turns; i += 1) {
+        ctx.beginPath();
+        for (let j = 0; j <= 32; j += 1) {
+          const angle = (front ? 0 : Math.PI) + j / 32 * Math.PI;
+          const x = left + spacing * (i + angle / (2 * Math.PI)) +
+            spacing * 0.48 * Math.sin(angle);
+          const y = source.cy - source.radius * Math.cos(angle);
+          if (j === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        strokeWire(front);
+      }
+    }
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
+    for (const side of [-1, 1]) {
+      const x = (side < 0 ? left : right) + side * 28;
+      ctx.strokeStyle = cssVar("--text", "#222");
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(x, terminalY - 7);
+      ctx.lineTo(x, terminalY - 4);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x, terminalY, 4, 0, Math.PI * 2);
+      ctx.stroke();
+      if (Math.abs(source.current) >= 0.01) {
+        const positive = side * source.current < 0;
+        ctx.fillStyle = cssVar("--text", "#222");
+        ctx.font = "700 18px system-ui";
+        ctx.fillText(positive ? "+" : "−", x, terminalY + 17);
+        // Technische Stromrichtung: vom Plusanschluss durch die Spule zu Minus.
+        const direction = positive ? -1 : 1;
+        const y = source.cy + source.radius + 21;
+        ctx.beginPath();
+        ctx.moveTo(x, y + direction * 7);
+        ctx.lineTo(x - 5, y - direction * 4);
+        ctx.lineTo(x + 5, y - direction * 4);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
     ctx.font = "700 18px system-ui";
     if (Math.abs(source.current) >= 0.01) {
       for (const side of [-1, 1]) {
@@ -1253,7 +1313,7 @@
     }
     ctx.fillStyle = cssVar("--muted", "#667085");
     ctx.font = "600 12px system-ui";
-    ctx.fillText("Spule · 10 Windungen", source.cx, source.cy + source.radius + 32);
+    ctx.fillText(`Spule · ${source.turns} Windungen`, source.cx, source.cy + source.radius + 32);
     ctx.restore();
   }
 
@@ -1577,7 +1637,7 @@
     });
   });
 
-  [el.m1type, el.m2type, el.s1, el.s2, el.current, el.current2, el.coilCurrent].forEach(
+  [el.m1type, el.m2type, el.s1, el.s2, el.current, el.current2, el.coilCurrent, el.coilTurns].forEach(
     (control) => {
       control.addEventListener("input", () => {
         updateUI();

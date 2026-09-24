@@ -84,12 +84,17 @@
         <fieldset class="conductor-controls">
           <legend>Spule (Seitenansicht)</legend>
           <label>
+            Windungszahl
+            <span id="coilTurnsOut" class="value">10 Windungen</span>
+            <input id="coilTurns" type="range" min="2" max="20" step="1" value="10" disabled />
+          </label>
+          <label>
             Stromstärke und Richtung
             <span id="coilCurrentOut" class="value">1,0 A · Nordpol rechts</span>
             <input id="coilCurrent" type="range" min="-2" max="2" step="0.1" value="1" disabled />
           </label>
           <button id="coilToggle" type="button" aria-pressed="false">Spule anzeigen</button>
-          <span class="hint">10 Windungen · innen stark und nahezu parallel, außen gebogen.
+          <span class="hint">Mehr Windungen verstärken das Feld bei gleicher Stromstärke.
             „Feld Spule“ zeigt ihr eigenes Feld; der Kompass reagiert auf das Gesamtfeld.
             Für die Spule allein die anderen Quellen ausblenden.</span>
         </fieldset>
